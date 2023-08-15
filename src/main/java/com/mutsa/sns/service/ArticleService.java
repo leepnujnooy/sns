@@ -1,6 +1,7 @@
 package com.mutsa.sns.service;
 
-import com.mutsa.sns.dto.article.ArticleDetailResponseDto;
+import com.mutsa.sns.dto.article.ArticleDetailResponse;
+import com.mutsa.sns.dto.article.ArticleResponse;
 import com.mutsa.sns.entity.Article;
 import com.mutsa.sns.entity.ArticleImage;
 import com.mutsa.sns.entity.User;
@@ -14,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -49,11 +49,16 @@ public class ArticleService {
             log.info("아티클 저장");
 
             //default 이미지 저장
-            articleImageRepository.save(ArticleImage
+            ArticleImage articleImage = articleImageRepository.save(ArticleImage
                     .builder()
                     .imageUrl(articleImageManager.uploadDefault(article.getId(),user.getId()))
                     .article(article)
                     .build());
+
+            //대표이미지 default.png 로 저장
+            article.setThumbnail(articleImage);
+            articleRepository.save(article);
+
             log.info("기본이미지 저장");
             //메서드 종료
             return;
@@ -73,26 +78,36 @@ public class ArticleService {
 
 
         //ArticleImage 객체 생성
-        for (MultipartFile image : files){
+        for (int i = 0; i < files.length; i++) {
             //업로드 후 url 값 반환
-            String imageUrl = articleImageManager.upload(image, article.getId(), user.getId());
+            String imageUrl = articleImageManager.upload(files[i],article.getId(), user.getId());
 
-            //articleImage 객체 생성
+            //ArticleImage 객체 생성
             ArticleImage articleImage = ArticleImage
                     .builder()
                     .article(article)
                     .imageUrl(imageUrl)
                     .build();
 
-            //articleImage 객체 저장
+            //ArticleImage 객체 저장
             articleImageRepository.save(articleImage);
+
+            //첫번째 이미지라면, 대표이미지로 저장
+            if(i==0) {
+                article.setThumbnail(articleImage);
+                articleRepository.save(article);
+            }
         }
+
+
+
+
     }
 
 
 
     //단독 피드 조회하기 ( 작성한 사용자 기준으로, 목록 형태의 조회가 가능 )
-    public ArticleDetailResponseDto getOneArticle(Long articleId){
+    public ArticleDetailResponse getOneArticle(Long articleId){
         Article article = findService.findByArticleId(articleId);
         List<ArticleImage> images = findService.findAllByArticleId(articleId);
 
@@ -101,7 +116,7 @@ public class ArticleService {
             imageUrls.add(image.getImageUrl());
         }
 
-        return ArticleDetailResponseDto.builder()
+        return ArticleDetailResponse.builder()
                 .title(article.getTitle())
                 .content(article.getContent())
                 .imageUrls(imageUrls)
@@ -109,5 +124,11 @@ public class ArticleService {
     }
 
 
+    //전체 피드 조회하기
+//    public List<ArticleResponse> getAllArticle(){
+//        List<ArticleResponse> responseList = new ArrayList<>();
+//
+//        return ;
+//    }
 
 }
